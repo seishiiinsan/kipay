@@ -1,25 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+
+const categories = [
+  { id: 'Alimentation', name: 'Alimentation', icon: '🍔' },
+  { id: 'Transport', name: 'Transport', icon: '🚗' },
+  { id: 'Logement', name: 'Logement', icon: '🏠' },
+  { id: 'Loisirs', name: 'Loisirs', icon: '🎉' },
+  { id: 'Autre', name: 'Autre', icon: '🛒' },
+];
 
 export default function AddExpenseForm({ group, onClose, onExpenseAdded }) {
   const { user, token } = useAuth();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState(user?.id);
-  
-  // Gestion des participants
-  // Par défaut, tout le monde est sélectionné
+  const [category, setCategory] = useState('Autre');
   const [selectedMemberIds, setSelectedMemberIds] = useState(group.members.map(m => m.id));
-  
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const toggleMember = (memberId) => {
     setSelectedMemberIds(prev => {
       if (prev.includes(memberId)) {
-        // On ne peut pas désélectionner le dernier membre (il faut au moins 1 participant)
         if (prev.length === 1) return prev;
         return prev.filter(id => id !== memberId);
       } else {
@@ -39,7 +43,6 @@ export default function AddExpenseForm({ group, onClose, onExpenseAdded }) {
       return;
     }
 
-    // Répartition équitable
     const numParticipants = selectedMemberIds.length;
     const amountPerPerson = parseFloat(amount) / numParticipants;
 
@@ -48,9 +51,6 @@ export default function AddExpenseForm({ group, onClose, onExpenseAdded }) {
       amount_owed: amountPerPerson.toFixed(2),
     }));
 
-    // Correction des arrondis sur le dernier participant
-    // Ex: 10€ / 3 = 3.33, 3.33, 3.33 -> Total 9.99. Il manque 0.01.
-    // On ajoute la différence au premier participant pour que le total soit exact.
     const currentTotal = participants.reduce((sum, p) => sum + parseFloat(p.amount_owed), 0);
     const diff = parseFloat(amount) - currentTotal;
     if (diff !== 0) {
@@ -63,6 +63,7 @@ export default function AddExpenseForm({ group, onClose, onExpenseAdded }) {
       group_id: group.id,
       paid_by_user_id: parseInt(paidBy),
       participants,
+      category,
     };
 
     try {
@@ -106,36 +107,58 @@ export default function AddExpenseForm({ group, onClose, onExpenseAdded }) {
         />
       </div>
 
-      <div>
-        <label htmlFor="amount" className="text-lg font-bold text-black dark:text-white uppercase">Montant (€)</label>
-        <input
-          type="number"
-          id="amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          required
-          step="0.01"
-          min="0.01"
-          className="mt-2 block w-full p-4 border-2 border-black dark:border-white bg-gray-50 dark:bg-gray-900 text-black dark:text-white text-lg font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]"
-          placeholder="0.00"
-        />
+      <div className="grid grid-cols-2 gap-6">
+        <div>
+          <label htmlFor="amount" className="text-lg font-bold text-black dark:text-white uppercase">Montant (€)</label>
+          <input
+            type="number"
+            id="amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+            step="0.01"
+            min="0.01"
+            className="mt-2 block w-full p-4 border-2 border-black dark:border-white bg-gray-50 dark:bg-gray-900 text-black dark:text-white text-lg font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]"
+            placeholder="0.00"
+          />
+        </div>
+        <div>
+          <label htmlFor="paidBy" className="text-lg font-bold text-black dark:text-white uppercase">Payé par</label>
+          <select
+            id="paidBy"
+            value={paidBy}
+            onChange={(e) => setPaidBy(e.target.value)}
+            required
+            className="mt-2 block w-full p-4 border-2 border-black dark:border-white bg-gray-50 dark:bg-gray-900 text-black dark:text-white text-lg font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]"
+          >
+            {group.members.map(member => (
+              <option key={member.id} value={member.id}>
+                {member.id === user.id ? `${member.name} (Moi)` : member.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div>
-        <label htmlFor="paidBy" className="text-lg font-bold text-black dark:text-white uppercase">Payé par</label>
-        <select
-          id="paidBy"
-          value={paidBy}
-          onChange={(e) => setPaidBy(e.target.value)}
-          required
-          className="mt-2 block w-full p-4 border-2 border-black dark:border-white bg-gray-50 dark:bg-gray-900 text-black dark:text-white text-lg font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]"
-        >
-          {group.members.map(member => (
-            <option key={member.id} value={member.id}>
-              {member.id === user.id ? `${member.name} (Moi)` : member.name}
-            </option>
+        <label className="text-lg font-bold text-black dark:text-white uppercase mb-2 block">Catégorie</label>
+        <div className="flex flex-wrap gap-3">
+          {categories.map(cat => (
+            <button
+              type="button"
+              key={cat.id}
+              onClick={() => setCategory(cat.id)}
+              className={`px-4 py-2 border-2 font-bold uppercase transition-all flex items-center gap-2 ${
+                category === cat.id
+                  ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white'
+                  : 'bg-white text-black border-gray-300 hover:border-black'
+              }`}
+            >
+              <span>{cat.icon}</span>
+              <span>{cat.name}</span>
+            </button>
           ))}
-        </select>
+        </div>
       </div>
 
       <div>

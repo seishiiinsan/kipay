@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 // GET /api/groups/:id/expenses - Lister les dépenses d'un groupe
 export async function GET(request, { params }) {
-  const { id: groupId } = await params; // Correction : await params
+  const { id: groupId } = await params;
   try {
     const text = `
       SELECT 
@@ -12,6 +12,7 @@ export async function GET(request, { params }) {
         e.amount, 
         e.date, 
         e.created_at,
+        e.category,
         u.name as paid_by_name
       FROM expenses e
       JOIN users u ON e.paid_by_user_id = u.id

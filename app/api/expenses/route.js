@@ -6,7 +6,7 @@ export async function POST(request) {
   const client = await getClient();
   try {
     const body = await request.json();
-    const { description, amount, date, group_id, paid_by_user_id, participants } = body;
+    const { description, amount, date, group_id, paid_by_user_id, participants, category } = body;
 
     // Validation de base
     if (!description || !amount || !group_id || !paid_by_user_id || !participants || participants.length === 0) {
@@ -15,24 +15,25 @@ export async function POST(request) {
 
     // Vérification que la somme des parts correspond (à peu près) au montant total
     const totalSplit = participants.reduce((sum, p) => sum + parseFloat(p.amount_owed), 0);
-    if (Math.abs(totalSplit - parseFloat(amount)) > 0.05) { // Tolérance de 5 centimes pour les arrondis
+    if (Math.abs(totalSplit - parseFloat(amount)) > 0.05) {
       return NextResponse.json({ error: 'Split amounts do not match total amount' }, { status: 400 });
     }
 
     await client.query('BEGIN');
 
-    // 1. Insérer la dépense
+    // 1. Insérer la dépense avec la catégorie
     const insertExpenseQuery = `
-      INSERT INTO expenses (description, amount, date, group_id, paid_by_user_id)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, description, amount, date, created_at
+      INSERT INTO expenses (description, amount, date, group_id, paid_by_user_id, category)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, description, amount, date, category, created_at
     `;
     const expenseRes = await client.query(insertExpenseQuery, [
       description, 
       amount, 
       date || new Date(), 
       group_id, 
-      paid_by_user_id
+      paid_by_user_id,
+      category || 'other' // Valeur par défaut
     ]);
     const expense = expenseRes.rows[0];
 

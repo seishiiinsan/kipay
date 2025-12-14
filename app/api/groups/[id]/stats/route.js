@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 // GET /api/groups/:id/stats - Obtenir les statistiques d'un groupe
 export async function GET(request, { params }) {
-  const { id: groupId } = await params; // Correction : await params
+  const { id: groupId } = await params;
   try {
     // 1. Total dépensé par membre
     const totalSpentPerMemberQuery = `
@@ -39,11 +39,22 @@ export async function GET(request, { params }) {
     `;
     const biggestExpensesRes = await query(biggestExpensesQuery, [groupId]);
 
+    // 4. Total par catégorie
+    const totalByCategoryQuery = `
+      SELECT category, COALESCE(SUM(amount), 0) as total_amount
+      FROM expenses
+      WHERE group_id = $1
+      GROUP BY category
+      ORDER BY total_amount DESC;
+    `;
+    const totalByCategoryRes = await query(totalByCategoryQuery, [groupId]);
+
     return NextResponse.json({
       stats: {
         totalSpentPerMember: totalSpentPerMemberRes.rows,
         expensesByMonth: expensesByMonthRes.rows,
         biggestExpenses: biggestExpensesRes.rows,
+        totalByCategory: totalByCategoryRes.rows,
       }
     }, { status: 200 });
   } catch (error) {
