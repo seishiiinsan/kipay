@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 
 const AuthContext = createContext(null);
 
-// Fonction utilitaire pour décoder le JWT (sans librairie externe lourde)
 function parseJwt(token) {
   try {
     return JSON.parse(atob(token.split('.')[1]));
@@ -26,14 +25,13 @@ export const AuthProvider = ({ children }) => {
       const decoded = parseJwt(storedToken);
       if (decoded) {
         setToken(storedToken);
-        // On stocke toutes les infos du token (userId, email, etc.)
         setUser({ 
           id: decoded.userId, 
           email: decoded.email,
+          email_verified: decoded.email_verified,
           isAuthenticated: true 
         });
       } else {
-        // Token invalide
         localStorage.removeItem('kipay_token');
       }
     }
@@ -56,10 +54,16 @@ export const AuthProvider = ({ children }) => {
       setUser({ 
         id: decoded.userId, 
         email: decoded.email,
+        email_verified: decoded.email_verified,
         isAuthenticated: true 
       });
-
-      router.push('/dashboard');
+      
+      // Si l'email n'est pas vérifié, on le redirige vers la page d'attente
+      if (!decoded.email_verified) {
+        router.push('/please-verify');
+      } else {
+        router.push('/dashboard');
+      }
       return true;
     }
     return false;

@@ -9,6 +9,7 @@ import Modal from '@/components/Modal';
 import AddExpenseForm from '@/components/AddExpenseForm';
 import SettleDebtModal from '@/components/SettleDebtModal';
 import Toast from '@/components/Toast';
+import { motion } from 'framer-motion';
 
 const categoryIcons = {
   'Alimentation': '🍔',
@@ -111,6 +112,21 @@ export default function GroupDetailPage() {
     return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Groupe introuvable</div>;
   }
 
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <DashboardHeader />
@@ -142,9 +158,9 @@ export default function GroupDetailPage() {
                 <h2 className="text-2xl font-black text-black dark:text-white uppercase">Dépenses</h2>
                 <span className="font-bold text-gray-500 uppercase">{expenses.length} dépenses</span>
               </div>
-              <div className="divide-y-2 divide-black dark:divide-white">
+              <motion.div variants={listVariants} initial="hidden" animate="visible" className="divide-y-2 divide-black dark:divide-white">
                 {expenses.map(expense => (
-                  <div key={expense.id} className="p-6 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+                  <motion.div variants={itemVariants} key={expense.id} className="p-6 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="h-12 w-12 bg-white dark:bg-black border-2 border-black dark:border-white flex items-center justify-center text-2xl">{categoryIcons[expense.category] || '🛒'}</div>
                       <div>
@@ -153,10 +169,10 @@ export default function GroupDetailPage() {
                       </div>
                     </div>
                     <p className="text-2xl font-black text-black dark:text-white">{parseFloat(expense.amount).toFixed(2)} €</p>
-                  </div>
+                  </motion.div>
                 ))}
                 {expenses.length === 0 && <div className="p-12 text-center"><p className="text-xl font-bold text-gray-400 uppercase">Aucune dépense.</p></div>}
-              </div>
+              </motion.div>
             </div>
           </div>
           <div className="space-y-8">

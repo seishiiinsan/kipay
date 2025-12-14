@@ -10,7 +10,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    const { rows } = await query('SELECT id, name, email, password FROM users WHERE email = $1', [email]);
+    const { rows } = await query('SELECT id, name, email, password, email_verified FROM users WHERE email = $1', [email]);
     const user = rows[0];
 
     if (!user) {
@@ -27,13 +27,20 @@ export async function POST(request) {
     const tokenPayload = {
       userId: user.id,
       email: user.email,
+      email_verified: user.email_verified, // On inclut le statut dans le token
     };
 
     const token = await signJWT(tokenPayload);
 
     return NextResponse.json({ 
       message: 'Login successful',
-      token: token 
+      token: token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        email_verified: user.email_verified,
+      }
     }, { status: 200 });
 
   } catch (error) {

@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 
 // GET /api/users/:id - Obtenir un utilisateur spécifique
 export async function GET(request, { params }) {
-  const { id } = await params; // Correction : await params
+  const { id } = await params;
   try {
-    const { rows } = await query('SELECT id, name, email, created_at FROM users WHERE id = $1', [id]);
+    const { rows } = await query('SELECT id, name, email, notify_new_expense, notify_debt_reminder, created_at FROM users WHERE id = $1', [id]);
     if (rows.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -18,12 +18,14 @@ export async function GET(request, { params }) {
 
 // PUT /api/users/:id - Mettre à jour un utilisateur
 export async function PUT(request, { params }) {
-  const { id } = await params; // Correction : await params
+  const { id } = await params;
   try {
-    const { name, email } = await request.json();
+    const body = await request.json();
+    const { name, email, notify_new_expense, notify_debt_reminder } = body;
 
-    if (!name && !email) {
-      return NextResponse.json({ error: 'Name or email must be provided' }, { status: 400 });
+    // Validation
+    if (!name && !email && notify_new_expense === undefined && notify_debt_reminder === undefined) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
     const fields = [];
@@ -38,10 +40,18 @@ export async function PUT(request, { params }) {
       fields.push(`email = $${fieldIndex++}`);
       values.push(email);
     }
+    if (notify_new_expense !== undefined) {
+      fields.push(`notify_new_expense = $${fieldIndex++}`);
+      values.push(notify_new_expense);
+    }
+    if (notify_debt_reminder !== undefined) {
+      fields.push(`notify_debt_reminder = $${fieldIndex++}`);
+      values.push(notify_debt_reminder);
+    }
 
     values.push(id);
 
-    const text = `UPDATE users SET ${fields.join(', ')} WHERE id = $${fieldIndex} RETURNING id, name, email, created_at`;
+    const text = `UPDATE users SET ${fields.join(', ')} WHERE id = $${fieldIndex} RETURNING id, name, email, notify_new_expense, notify_debt_reminder, created_at`;
     
     const { rows } = await query(text, values);
 

@@ -1,5 +1,6 @@
-import { getClient } from '@/lib/db';
+import { getClient, query } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { sendNewExpenseEmail } from '@/lib/email';
 
 // POST /api/expenses - Créer une nouvelle dépense
 export async function POST(request) {
@@ -8,12 +9,10 @@ export async function POST(request) {
     const body = await request.json();
     const { description, amount, date, group_id, paid_by_user_id, participants, category } = body;
 
-    // Validation de base
     if (!description || !amount || !group_id || !paid_by_user_id || !participants || participants.length === 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Vérification que la somme des parts correspond (à peu près) au montant total
     const totalSplit = participants.reduce((sum, p) => sum + parseFloat(p.amount_owed), 0);
     if (Math.abs(totalSplit - parseFloat(amount)) > 0.05) {
       return NextResponse.json({ error: 'Split amounts do not match total amount' }, { status: 400 });
@@ -21,33 +20,57 @@ export async function POST(request) {
 
     await client.query('BEGIN');
 
-    // 1. Insérer la dépense avec la catégorie
     const insertExpenseQuery = `
       INSERT INTO expenses (description, amount, date, group_id, paid_by_user_id, category)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, description, amount, date, category, created_at
     `;
-    const expenseRes = await client.query(insertExpenseQuery, [
-      description, 
-      amount, 
-      date || new Date(), 
-      group_id, 
-      paid_by_user_id,
-      category || 'other' // Valeur par défaut
-    ]);
+    const expenseRes = await client.query(insertExpenseQuery, [description, amount, date || new Date(), group_id, paid_by_user_id, category || 'Autre']);
     const expense = expenseRes.rows[0];
 
-    // 2. Insérer les participants
     const insertParticipantQuery = `
       INSERT INTO expense_participants (expense_id, user_id, amount_owed)
       VALUES ($1, $2, $3)
     `;
-
     for (const p of participants) {
       await client.query(insertParticipantQuery, [expense.id, p.user_id, p.amount_owed]);
     }
 
     await client.query('COMMIT');
+
+    // --- Envoi des notifications ---
+    // On fait ça après le commit pour être sûr que la dépense est bien créée
+    try {
+      const groupInfoRes = await query('SELECT name FROM groups WHERE id = $1', [group_id]);
+      const groupName = groupInfoRes.rows[0].name;
+
+      const membersRes = await query(`
+        SELECT u.id, u.email, u.name, u.notify_new_expense 
+        FROM users u
+        JOIN group_members gm ON u.id = gm.user_id
+        WHERE gm.group_id = $1
+      `, [group_id]);
+
+      const payer = membersRes.rows.find(m => m.id === paid_by_user_id);
+
+      const recipients = membersRes.rows.filter(
+        member => member.id !== paid_by_user_id && member.notify_new_expense
+      );
+
+      for (const recipient of recipients) {
+        await sendNewExpenseEmail(recipient.email, {
+          description,
+          amount: parseFloat(amount),
+          paidBy: payer.name,
+          groupName,
+          groupId: group_id,
+        });
+      }
+    } catch (emailError) {
+      // On ne bloque pas la réponse si les emails échouent
+      console.error("Failed to send expense notification emails:", emailError);
+    }
+    // --- Fin des notifications ---
 
     return NextResponse.json({ expense }, { status: 201 });
   } catch (error) {
