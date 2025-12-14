@@ -12,7 +12,6 @@ function convertToCSV(data) {
     const values = headers.map(header => {
       let value = row[header];
       if (typeof value === 'string') {
-        // Échapper les guillemets en les doublant et entourer de guillemets
         value = `"${value.replace(/"/g, '""')}"`;
       }
       return value;
@@ -25,9 +24,8 @@ function convertToCSV(data) {
 
 // GET /api/groups/:id/export - Exporter les dépenses d'un groupe en CSV
 export async function GET(request, { params }) {
-  const { id: groupId } = params;
+  const { id: groupId } = await params; // Correction : await params
   try {
-    // Récupérer les données des dépenses avec les noms des payeurs
     const expensesQuery = `
       SELECT 
         e.id as expense_id,
@@ -47,10 +45,9 @@ export async function GET(request, { params }) {
     }
 
     const csvData = convertToCSV(expenses);
-    const groupName = 'kipay-export'; // On pourrait récupérer le nom du groupe
+    const groupName = 'kipay-export';
     const filename = `${groupName}-${new Date().toISOString().split('T')[0]}.csv`;
 
-    // Créer la réponse avec les bons en-têtes
     const response = new NextResponse(csvData, {
       status: 200,
       headers: {

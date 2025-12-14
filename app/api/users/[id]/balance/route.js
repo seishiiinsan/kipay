@@ -3,36 +3,41 @@ import { NextResponse } from 'next/server';
 
 // GET /api/users/:id/balance - Obtenir le solde global d'un utilisateur
 export async function GET(request, { params }) {
-  const { id } = params;
+  const { id } = await params;
   try {
-    // Calcul de ce que l'utilisateur a payé pour les autres
-    const totalPaidForOthersQuery = `
-      SELECT COALESCE(SUM(ep.amount_owed), 0) as total
-      FROM expenses e
-      JOIN expense_participants ep ON e.id = ep.expense_id
-      WHERE e.paid_by_user_id = $1 AND ep.user_id != $1 AND ep.is_settled = FALSE;
-    `;
-    const totalPaidForOthersResult = await query(totalPaidForOthersQuery, [id]);
-    const totalOwedToUser = parseFloat(totalPaidForOthersResult.rows[0].total);
+    // 1. Total payé par l'utilisateur dans toutes les dépenses
+    const totalPaidRes = await query('SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE paid_by_user_id = $1', [id]);
+    let netBalance = parseFloat(totalPaidRes.rows[0].total);
 
-    // Calcul de ce que les autres ont payé pour l'utilisateur
-    const totalPaidByOthersQuery = `
-      SELECT COALESCE(SUM(ep.amount_owed), 0) as total
-      FROM expenses e
-      JOIN expense_participants ep ON e.id = ep.expense_id
-      WHERE e.paid_by_user_id != $1 AND ep.user_id = $1 AND ep.is_settled = FALSE;
-    `;
-    const totalPaidByOthersResult = await query(totalPaidByOthersQuery, [id]);
-    const totalUserOwes = parseFloat(totalPaidByOthersResult.rows[0].total);
+    // 2. Total de toutes ses parts de dépenses (ce qu'il aurait dû payer)
+    const totalOwedRes = await query('SELECT COALESCE(SUM(amount_owed), 0) as total FROM expense_participants WHERE user_id = $1', [id]);
+    netBalance -= parseFloat(totalOwedRes.rows[0].total);
 
-    // Calcul du solde net
-    const netBalance = totalOwedToUser - totalUserOwes;
+    // 3. Total des remboursements faits par l'utilisateur
+    // Un remboursement fait est une sortie d'argent, comme payer une dépense. Cela augmente le solde (réduit la dette).
+    const paymentsMadeRes = await query('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE paid_by_user_id = $1', [id]);
+    netBalance += parseFloat(paymentsMadeRes.rows[0].total); // CORRECTION : + au lieu de -
+
+    // 4. Total des remboursements reçus par l'utilisateur
+    // Un remboursement reçu est une entrée d'argent. Cela diminue le solde (réduit la créance).
+    const paymentsReceivedRes = await query('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE paid_to_user_id = $1', [id]);
+    netBalance -= parseFloat(paymentsReceivedRes.rows[0].total); // CORRECTION : - au lieu de +
+
+    // Maintenant, on sépare ce solde net en "On vous doit" et "Vous devez"
+    let totalOwedToUser = 0;
+    let totalUserOwes = 0;
+
+    if (netBalance > 0) {
+      totalOwedToUser = netBalance;
+    } else {
+      totalUserOwes = -netBalance;
+    }
 
     return NextResponse.json({
       balance: {
-        totalOwedToUser, // Ce que les autres doivent à l'utilisateur
-        totalUserOwes,   // Ce que l'utilisateur doit aux autres
-        netBalance,      // Solde net (positif si on lui doit de l'argent, négatif s'il en doit)
+        totalOwedToUser,
+        totalUserOwes,
+        netBalance,
       }
     }, { status: 200 });
   } catch (error) {

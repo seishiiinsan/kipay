@@ -1,5 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
+import { ToastProvider } from "@/context/ToastContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -11,8 +14,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// URL de base de votre site (à remplacer par votre domaine de production)
-const siteUrl = 'https://kipay.app'; // Exemple
+const siteUrl = 'https://kipay.app';
 
 export const metadata = {
   title: {
@@ -21,62 +23,50 @@ export const metadata = {
   },
   description: "L'application simple et gratuite pour gérer vos dépenses de groupe. Colocations, voyages, couples... Ne vous demandez plus jamais 'Qui paie ?'.",
   keywords: ['gestion de dépenses', 'partage de frais', 'comptes entre amis', 'remboursement', 'dépenses de groupe', 'colocation', 'voyage'],
-  
-  // Open Graph (pour Facebook, WhatsApp, etc.)
   openGraph: {
     title: 'Kipay | Les bons comptes font les bons amis',
     description: "L'application simple et gratuite pour gérer vos dépenses de groupe.",
     url: siteUrl,
     siteName: 'Kipay',
-    images: [
-      {
-        url: `${siteUrl}/og-image.jpg`, // IMPORTANT: Remplacez par votre image
-        width: 1200,
-        height: 630,
-        alt: 'Logo Kipay sur un fond coloré',
-      },
-    ],
+    images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: 'Logo Kipay sur un fond coloré' }],
     locale: 'fr_FR',
     type: 'website',
   },
-
-  // Twitter Card
   twitter: {
     card: 'summary_large_image',
     title: 'Kipay | Les bons comptes font les bons amis',
     description: "L'application simple et gratuite pour gérer vos dépenses de groupe.",
-    images: [`${siteUrl}/og-image.jpg`], // IMPORTANT: Remplacez par votre image
-    creator: '@votrecompteX', // Mettez votre pseudo Twitter si vous en avez un
+    images: [`${siteUrl}/og-image.jpg`],
+    creator: '@votrecompteX',
   },
-
-  // Favicons et icônes
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon-16x16.png',
     apple: '/apple-touch-icon.png',
   },
-  
-  // Robots (pour le référencement)
   robots: {
     index: true,
     follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-    },
+    googleBot: { index: true, follow: true, 'max-video-preview': -1, 'max-image-preview': 'large', 'max-snippet': -1 },
   },
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="fr">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+    <html lang="fr" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ToastProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

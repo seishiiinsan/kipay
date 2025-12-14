@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 // GET /api/users/:id - Obtenir un utilisateur spécifique
 export async function GET(request, { params }) {
-  const { id } = params;
+  const { id } = await params; // Correction : await params
   try {
     const { rows } = await query('SELECT id, name, email, created_at FROM users WHERE id = $1', [id]);
     if (rows.length === 0) {
@@ -18,16 +18,14 @@ export async function GET(request, { params }) {
 
 // PUT /api/users/:id - Mettre à jour un utilisateur
 export async function PUT(request, { params }) {
-  const { id } = params;
+  const { id } = await params; // Correction : await params
   try {
     const { name, email } = await request.json();
 
-    // Validation
     if (!name && !email) {
       return NextResponse.json({ error: 'Name or email must be provided' }, { status: 400 });
     }
 
-    // Construction de la requête de mise à jour
     const fields = [];
     const values = [];
     let fieldIndex = 1;
@@ -53,7 +51,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json({ user: rows[0] }, { status: 200 });
   } catch (error) {
-    if (error.code === '23505') { // unique_violation
+    if (error.code === '23505') {
       return NextResponse.json({ error: 'Email already exists' }, { status: 409 });
     }
     console.error(`Error updating user ${id}:`, error);

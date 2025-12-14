@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 // GET /api/users/:id/groups - Lister les groupes d'un utilisateur
 export async function GET(request, { params }) {
-  const { id } = params;
+  const { id } = await params; // Correction : await params
   try {
     const text = `
       SELECT g.id, g.name, g.created_at

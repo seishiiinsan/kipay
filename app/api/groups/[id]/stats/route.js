@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 // GET /api/groups/:id/stats - Obtenir les statistiques d'un groupe
 export async function GET(request, { params }) {
-  const { id: groupId } = params;
+  const { id: groupId } = await params; // Correction : await params
   try {
     // 1. Total dépensé par membre
     const totalSpentPerMemberQuery = `

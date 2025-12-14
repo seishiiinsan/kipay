@@ -3,9 +3,8 @@ import { NextResponse } from 'next/server';
 
 // GET /api/expenses/:id - Obtenir le détail d'une dépense
 export async function GET(request, { params }) {
-  const { id } = params;
+  const { id } = await params; // Correction : await params
   try {
-    // Récupérer la dépense
     const expenseQuery = `
       SELECT e.id, e.description, e.amount, e.date, e.group_id, u.name as paid_by_name, e.paid_by_user_id
       FROM expenses e
@@ -19,7 +18,6 @@ export async function GET(request, { params }) {
     }
     const expense = expenseRes.rows[0];
 
-    // Récupérer les participants
     const participantsQuery = `
       SELECT u.id, u.name, ep.amount_owed, ep.is_settled
       FROM users u
@@ -38,10 +36,9 @@ export async function GET(request, { params }) {
 
 // DELETE /api/expenses/:id - Supprimer une dépense
 export async function DELETE(request, { params }) {
-  const { id } = params;
+  const { id } = await params; // Correction : await params
   const client = await getClient();
   try {
-    // On supprime la dépense et les participants en cascade grâce à la configuration de la BDD (ON DELETE CASCADE)
     await client.query('BEGIN');
     const text = 'DELETE FROM expenses WHERE id = $1 RETURNING *';
     const { rows } = await client.query(text, [id]);
@@ -61,22 +58,20 @@ export async function DELETE(request, { params }) {
   }
 }
 
-// PUT /api/expenses/:id - Modifier une dépense (logique complexe, simplifiée ici)
+// PUT /api/expenses/:id - Modifier une dépense
 export async function PUT(request, { params }) {
-  const { id } = params;
+  const { id } = await params; // Correction : await params
   const client = await getClient();
   try {
     const body = await request.json();
     const { description, amount, date, paid_by_user_id, participants } = body;
 
-    // Validation
     if (!description || !amount || !participants || participants.length === 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     await client.query('BEGIN');
 
-    // 1. Mettre à jour la dépense principale
     const updateExpenseQuery = `
       UPDATE expenses 
       SET description = $1, amount = $2, date = $3, paid_by_user_id = $4
@@ -88,10 +83,8 @@ export async function PUT(request, { params }) {
       throw new Error('Expense not found');
     }
 
-    // 2. Supprimer les anciens participants
     await client.query('DELETE FROM expense_participants WHERE expense_id = $1', [id]);
 
-    // 3. Insérer les nouveaux participants
     const insertParticipantQuery = `
       INSERT INTO expense_participants (expense_id, user_id, amount_owed)
       VALUES ($1, $2, $3)
