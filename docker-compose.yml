@@ -1,19 +1,39 @@
 version: '3.8'
 
 services:
+    # L'application Next.js
+    app:
+        container_name: kipay_app
+        build:
+            context: .
+            dockerfile: Dockerfile
+        restart: always
+        ports:
+            - "3000:3000" # L'app sera accessible sur localhost:3000 du VPS
+        environment:
+            - DATABASE_URL=postgresql://kipay:kipay@db:5432/kipay
+            - POSTGRES_HOST=db # Nom du service ci-dessous
+            - POSTGRES_USER=kipay
+            - POSTGRES_PASSWORD=kipay
+            - POSTGRES_DB=kipay
+            - JWT_SECRET_KEY=votre_super_secret_key_prod
+            - RESEND_API_KEY=votre_cle_resend
+            - NEXT_PUBLIC_SITE_URL=https://votre-domaine-kipay.com
+        depends_on:
+            - db
+
+    # La base de données
     db:
+        container_name: kipay_db
         image: postgres:15-alpine
         restart: always
         environment:
             - POSTGRES_USER=kipay
             - POSTGRES_PASSWORD=kipay
             - POSTGRES_DB=kipay
-        ports:
-            - '5432:5432'
         volumes:
-            - db:/var/lib/postgresql/data
+            - db_data:/var/lib/postgresql/data
             - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 volumes:
-    db:
-        driver: local
+    db_data:
