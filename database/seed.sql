@@ -1,79 +1,87 @@
--- Nettoyage des données existantes
+-- Nettoyage complet
 TRUNCATE users, groups, group_members, expenses, expense_participants, payments RESTART IDENTITY CASCADE;
 
--- 1. Création de 50 utilisateurs
-INSERT INTO users (name, email)
-SELECT
-    'User ' || s,
-    'user' || s || '@kipay.app'
-FROM generate_series(1, 50) as s;
+-- 1. Utilisateurs (Mot de passe pour tous : 'password123')
+INSERT INTO users (name, email, password)
+VALUES ('Gabin Admin', 'gabin@kipay.app', '$2a$10$yW.3.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q'),     -- ID 1
+       ('Alice Martin', 'alice@test.com', '$2a$10$yW.3.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q'),     -- ID 2
+       ('Bob Dupont', 'bob@test.com', '$2a$10$yW.3.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q'),         -- ID 3
+       ('Charlie Durand', 'charlie@test.com', '$2a$10$yW.3.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q'), -- ID 4
+       ('David Lefebvre', 'david@test.com', '$2a$10$yW.3.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q.q');
+-- ID 5
 
--- 2. Création de 10 groupes
+-- 2. Groupes
 INSERT INTO groups (name, created_by_user_id)
-SELECT
-    'Groupe ' || s,
-    (floor(random() * 50) + 1)::int
-FROM generate_series(1, 10) as s;
+VALUES ('Vacances Ski 2024', 1), -- ID 1
+       ('Colocation Paris', 2),  -- ID 2
+       ('Cadeau Maman', 3);
+-- ID 3
 
--- 3. Ajout des membres aux groupes
--- On s'assure d'abord que le créateur est membre
+-- 3. Membres des groupes
+-- Groupe Ski : Gabin, Alice, Bob, Charlie
 INSERT INTO group_members (group_id, user_id)
-SELECT id, created_by_user_id FROM groups ON CONFLICT DO NOTHING;
+VALUES (1, 1),
+       (1, 2),
+       (1, 3),
+       (1, 4);
 
--- On ajoute des membres aléatoires (environ 20% de chance pour chaque user d'être dans chaque groupe)
+-- Groupe Coloc : Alice, Bob
 INSERT INTO group_members (group_id, user_id)
-SELECT
-    g.id,
-    u.id
-FROM groups g
-CROSS JOIN users u
-WHERE random() < 0.2
-ON CONFLICT DO NOTHING;
+VALUES (2, 2),
+       (2, 3);
 
--- 4. Création de 500 dépenses
--- Pour chaque dépense, on choisit un groupe et un payeur membre de ce groupe
+-- Groupe Cadeau : Bob, Charlie, David
+INSERT INTO group_members (group_id, user_id)
+VALUES (3, 3),
+       (3, 4),
+       (3, 5);
+
+
+-- 4. Dépenses (Groupe Ski)
+-- Gabin a payé la location du chalet (1000€) pour tout le monde
 INSERT INTO expenses (description, amount, date, group_id, paid_by_user_id)
-SELECT
-    'Dépense ' || s,
-    (random() * 100 + 5)::numeric(10,2), -- Montant entre 5 et 105
-    CURRENT_DATE - (floor(random() * 365) || ' days')::interval, -- Date aléatoire sur la dernière année
-    rp.group_id,
-    rp.user_id
-FROM generate_series(1, 500) s
-CROSS JOIN LATERAL (
-    SELECT group_id, user_id
-    FROM group_members
-    ORDER BY random()
-    LIMIT 1
-) rp;
+VALUES ('Location Chalet', 1000.00, '2024-01-10', 1, 1); -- ID 1
 
--- 5. Création des participants aux dépenses
--- On divise chaque dépense équitablement entre tous les membres du groupe
 INSERT INTO expense_participants (expense_id, user_id, amount_owed)
-SELECT
-    e.id,
-    gm.user_id,
-    (e.amount / count(*) OVER (PARTITION BY e.id))::numeric(10,2)
-FROM expenses e
-JOIN group_members gm ON e.group_id = gm.group_id;
+VALUES (1, 1, 250.00),
+       (1, 2, 250.00),
+       (1, 3, 250.00),
+       (1, 4, 250.00);
 
--- 6. Création de 100 remboursements
+-- Alice a payé les courses (200€) pour tout le monde
+INSERT INTO expenses (description, amount, date, group_id, paid_by_user_id)
+VALUES ('Courses Supermarché', 200.00, '2024-01-11', 1, 2); -- ID 2
+
+INSERT INTO expense_participants (expense_id, user_id, amount_owed)
+VALUES (2, 1, 50.00),
+       (2, 2, 50.00),
+       (2, 3, 50.00),
+       (2, 4, 50.00);
+
+-- Bob a payé les forfaits (300€) mais seulement pour lui et Charlie
+INSERT INTO expenses (description, amount, date, group_id, paid_by_user_id)
+VALUES ('Forfaits Ski', 300.00, '2024-01-12', 1, 3); -- ID 3
+
+INSERT INTO expense_participants (expense_id, user_id, amount_owed)
+VALUES (3, 3, 150.00),
+       (3, 4, 150.00);
+
+
+-- 5. Dépenses (Groupe Coloc)
+-- Alice a payé l'électricité (80€)
+INSERT INTO expenses (description, amount, date, group_id, paid_by_user_id)
+VALUES ('Facture EDF', 80.00, '2024-02-01', 2, 2); -- ID 4
+
+INSERT INTO expense_participants (expense_id, user_id, amount_owed)
+VALUES (4, 2, 40.00),
+       (4, 3, 40.00);
+
+
+-- 6. Remboursements
+-- Charlie rembourse Gabin pour sa part du chalet (250€)
 INSERT INTO payments (amount, date, group_id, paid_by_user_id, paid_to_user_id)
-SELECT
-    (random() * 50 + 5)::numeric(10,2),
-    CURRENT_DATE - (floor(random() * 365) || ' days')::interval,
-    rp.group_id,
-    rp.payer_id,
-    rp.payee_id
-FROM generate_series(1, 100) s
-CROSS JOIN LATERAL (
-    SELECT
-        gm1.group_id,
-        gm1.user_id as payer_id,
-        gm2.user_id as payee_id
-    FROM group_members gm1
-    JOIN group_members gm2 ON gm1.group_id = gm2.group_id
-    WHERE gm1.user_id != gm2.user_id -- On ne se rembourse pas soi-même
-    ORDER BY random()
-    LIMIT 1
-) rp;
+VALUES (250.00, '2024-01-20', 1, 4, 1);
+
+-- Bob rembourse une partie à Alice (20€)
+INSERT INTO payments (amount, date, group_id, paid_by_user_id, paid_to_user_id)
+VALUES (20.00, '2024-02-05', 2, 3, 2);
