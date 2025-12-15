@@ -23,7 +23,7 @@ export default function GroupDetailPage() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
-  const groupId = params.id;
+  const groupSlug = params.slug;
   
   const [group, setGroup] = useState(null);
   const [expenses, setExpenses] = useState([]);
@@ -36,38 +36,63 @@ export default function GroupDetailPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (groupId) => {
     if (!token || !groupId) return;
     try {
-      setLoading(true);
-      
-      const groupRes = await fetch(`/api/groups/${groupId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-      const groupData = await groupRes.json();
-      if (groupRes.ok) setGroup(groupData.group);
+      // On récupère TOUT : détails du groupe (membres/soldes), dépenses, stats
+      const [groupRes, expensesRes, statsRes] = await Promise.all([
+        fetch(`/api/groups/${groupId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`/api/groups/${groupId}/expenses`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`/api/groups/${groupId}/stats`, { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
 
-      const expensesRes = await fetch(`/api/groups/${groupId}/expenses`, { headers: { 'Authorization': `Bearer ${token}` } });
-      const expensesData = await expensesRes.json();
-      if (expensesRes.ok) setExpenses(expensesData.expenses);
-
-      const statsRes = await fetch(`/api/groups/${groupId}/stats`, { headers: { 'Authorization': `Bearer ${token}` } });
-      const statsData = await statsRes.json();
-      if (statsRes.ok) setStats(statsData.stats);
+      if (groupRes.ok) setGroup((await groupRes.json()).group);
+      if (expensesRes.ok) setExpenses((await expensesRes.json()).expenses);
+      if (statsRes.ok) setStats((await statsRes.json()).stats);
 
     } catch (error) {
-      console.error("Failed to fetch group data", error);
-      setToast({ message: "Erreur lors du chargement des données", type: "error" });
-    } finally {
-      setLoading(false);
+      console.error("Fetch error:", error);
+      setToast({ message: "Erreur lors du chargement des données.", type: "error" });
     }
-  }, [token, groupId]);
+  }, [token]);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (authLoading) return;
+    if (!isAuthenticated) {
       router.push('/login');
       return;
     }
-    fetchData();
-  }, [token, isAuthenticated, authLoading, router, fetchData]);
+    if (!groupSlug || !token) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
+        // 1. Récupérer l'ID du groupe via le slug
+        const codeRes = await fetch(`/api/groups/by-code/${groupSlug}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        
+        if (!codeRes.ok) {
+          if (codeRes.status === 404) throw new Error('Groupe introuvable');
+          throw new Error('Erreur serveur');
+        }
+        
+        const codeData = await codeRes.json();
+        const groupId = codeData.group.id;
+
+        // 2. Récupérer toutes les données avec l'ID
+        await fetchData(groupId);
+      } catch (error) {
+        console.error("Error loading group:", error);
+        setToast({ message: error.message, type: "error" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInitialData();
+  }, [token, groupSlug, isAuthenticated, authLoading, router, fetchData]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(group.invite_code).then(() => {
@@ -78,14 +103,14 @@ export default function GroupDetailPage() {
   };
 
   const handleExpenseAdded = () => {
-    fetchData();
+    if (group) fetchData(group.id);
     setToast({ message: "Dépense ajoutée avec succès", type: "success" });
   };
 
   const handleDeleteGroup = async () => {
     setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/groups/${groupId}`, {
+      const res = await fetch(`/api/groups/${group.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -104,22 +129,12 @@ export default function GroupDetailPage() {
     }
   };
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Chargement...</div>;
-  }
-
-  if (!group) {
-    return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Groupe introuvable</div>;
-  }
+  if (authLoading || loading) return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Chargement...</div>;
+  if (!group) return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Groupe introuvable</div>;
 
   const listVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05,
-      },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
   };
 
   const itemVariants = {
@@ -179,7 +194,7 @@ export default function GroupDetailPage() {
             <div className="bg-white dark:bg-black p-6 border-4 border-black dark:border-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)]">
               <h2 className="text-2xl font-black text-black dark:text-white uppercase mb-4">Membres</h2>
               <div className="space-y-3">
-                {group.members && group.members.map(member => (
+                {group && group.members && group.members.map(member => (
                   <div key={member.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900 p-2 border-2 border-black dark:border-white">
                     <p className="font-bold text-lg">{member.name}</p>
                     <p className={`text-lg font-black ${member.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>{member.balance >= 0 ? '+' : ''}{member.balance.toFixed(2)} €</p>
