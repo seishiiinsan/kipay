@@ -31,15 +31,26 @@ export default function JoinGroupForm({ onClose }) {
         }),
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to join group');
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonError) {
+        throw new Error("Réponse invalide du serveur.");
       }
 
-      const data = await res.json();
-      showToast('Vous avez rejoint le groupe !', 'success');
-      onClose();
-      router.push(`/dashboard/groups/${data.group_id}`);
+      if (res.ok) {
+        showToast('Vous avez rejoint le groupe !', 'success');
+        onClose();
+        // Correction : On utilise le code saisi pour la redirection
+        router.push(`/dashboard/groups/${inviteCode}`);
+      } else if (res.status === 409) { // Conflit : déjà membre
+        showToast('Vous êtes déjà membre de ce groupe.', 'info');
+        onClose();
+        // Correction : On utilise le code saisi pour la redirection
+        router.push(`/dashboard/groups/${inviteCode}`);
+      } else {
+        throw new Error(data.error || 'Impossible de rejoindre le groupe');
+      }
     } catch (err) {
       setError(err.message);
       showToast(err.message, 'error');

@@ -58,7 +58,6 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated: true 
       });
       
-      // Si l'email n'est pas vérifié, on le redirige vers la page d'attente
       if (!decoded.email_verified) {
         router.push('/please-verify');
       } else {

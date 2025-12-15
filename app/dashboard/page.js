@@ -104,7 +104,7 @@ export default function DashboardPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {groups.map(group => (
-              <Link href={`/dashboard/groups/${group.id}`} key={group.id} className="block bg-white dark:bg-black p-6 border-4 border-black dark:border-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:shadow-none hover:translate-x-[8px] hover:translate-y-[8px] transition-all">
+              <Link href={`/dashboard/groups/${group.invite_code}`} key={group.id} className="block bg-white dark:bg-black p-6 border-4 border-black dark:border-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:shadow-none hover:translate-x-[8px] hover:translate-y-[8px] transition-all">
                 <h3 className="text-2xl font-black text-black dark:text-white uppercase truncate">{group.name}</h3>
                 <p className="text-sm font-bold text-indigo-500 mt-2">Voir le groupe →</p>
               </Link>
