@@ -23,7 +23,7 @@ export default function GroupDetailPage() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
-  const groupSlug = params.slug; // Utilisation de slug
+  const groupId = params.id;
   
   const [group, setGroup] = useState(null);
   const [expenses, setExpenses] = useState([]);
@@ -36,49 +36,38 @@ export default function GroupDetailPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const fetchData = useCallback(async (groupId) => {
+  const fetchData = useCallback(async () => {
     if (!token || !groupId) return;
     try {
-      const [expensesRes, statsRes] = await Promise.all([
-        fetch(`/api/groups/${groupId}/expenses`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`/api/groups/${groupId}/stats`, { headers: { 'Authorization': `Bearer ${token}` } })
-      ]);
-      if (expensesRes.ok) setExpenses((await expensesRes.json()).expenses);
-      if (statsRes.ok) setStats((await statsRes.json()).stats);
+      setLoading(true);
+      
+      const groupRes = await fetch(`/api/groups/${groupId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const groupData = await groupRes.json();
+      if (groupRes.ok) setGroup(groupData.group);
+
+      const expensesRes = await fetch(`/api/groups/${groupId}/expenses`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const expensesData = await expensesRes.json();
+      if (expensesRes.ok) setExpenses(expensesData.expenses);
+
+      const statsRes = await fetch(`/api/groups/${groupId}/stats`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const statsData = await statsRes.json();
+      if (statsRes.ok) setStats(statsData.stats);
+
     } catch (error) {
-      setToast({ message: "Erreur lors du chargement des détails.", type: "error" });
+      console.error("Failed to fetch group data", error);
+      setToast({ message: "Erreur lors du chargement des données", type: "error" });
+    } finally {
+      setLoading(false);
     }
-  }, [token]);
+  }, [token, groupId]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login');
       return;
     }
-
-    const fetchInitialData = async () => {
-      if (!token || !groupSlug) return;
-      try {
-        setLoading(true);
-        // 1. Récupérer les infos du groupe par le code (slug)
-        const groupRes = await fetch(`/api/groups/by-code/${groupSlug}`, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!groupRes.ok) throw new Error('Groupe introuvable');
-        const groupData = await groupRes.json();
-        const fetchedGroup = groupData.group;
-        setGroup(fetchedGroup);
-
-        // 2. Récupérer le reste des données avec l'ID
-        await fetchData(fetchedGroup.id);
-      } catch (error) {
-        setToast({ message: error.message, type: "error" });
-        router.push('/dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInitialData();
-  }, [token, groupSlug, isAuthenticated, authLoading, router, fetchData]);
+    fetchData();
+  }, [token, isAuthenticated, authLoading, router, fetchData]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(group.invite_code).then(() => {
@@ -89,14 +78,14 @@ export default function GroupDetailPage() {
   };
 
   const handleExpenseAdded = () => {
-    fetchData(group.id);
+    fetchData();
     setToast({ message: "Dépense ajoutée avec succès", type: "success" });
   };
 
   const handleDeleteGroup = async () => {
     setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/groups/${group.id}`, {
+      const res = await fetch(`/api/groups/${groupId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -115,12 +104,22 @@ export default function GroupDetailPage() {
     }
   };
 
-  if (authLoading || loading) return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Chargement...</div>;
-  if (!group) return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Groupe introuvable</div>;
+  if (authLoading || loading) {
+    return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Chargement...</div>;
+  }
+
+  if (!group) {
+    return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Groupe introuvable</div>;
+  }
 
   const listVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+      },
+    },
   };
 
   const itemVariants = {
@@ -180,7 +179,7 @@ export default function GroupDetailPage() {
             <div className="bg-white dark:bg-black p-6 border-4 border-black dark:border-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)]">
               <h2 className="text-2xl font-black text-black dark:text-white uppercase mb-4">Membres</h2>
               <div className="space-y-3">
-                {group && group.members && group.members.map(member => (
+                {group.members && group.members.map(member => (
                   <div key={member.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900 p-2 border-2 border-black dark:border-white">
                     <p className="font-bold text-lg">{member.name}</p>
                     <p className={`text-lg font-black ${member.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>{member.balance >= 0 ? '+' : ''}{member.balance.toFixed(2)} €</p>
