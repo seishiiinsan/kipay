@@ -2,41 +2,34 @@ import Link from 'next/link';
 
 export default function Footer() {
   return (
-    <footer className="bg-white dark:bg-black border-t-2 border-black dark:border-white" aria-labelledby="footer-heading">
-      <h2 id="footer-heading" className="sr-only">Pied de page</h2>
-      
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6 md:gap-8">
-          
-          {/* Logo & Slogan */}
-          <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 text-center md:text-left">
-            <Link href="/" className="text-2xl font-black tracking-tighter text-black dark:text-white uppercase hover:text-indigo-500 transition-colors">
-              Kipay
-            </Link>
-            <span className="hidden md:inline text-gray-300 dark:text-gray-700">|</span>
-            <p className="text-xs sm:text-sm font-bold text-gray-500 dark:text-gray-400 uppercase">
-              Les bons comptes font les bons amis.
-            </p>
+    <footer className="bg-white border-t-4 border-black">
+      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 border-b-4 border-black pb-12">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-black">Produit</h3>
+            <ul className="mt-4 space-y-2">
+              <li><Link href="#features" className="text-base font-bold text-gray-600 hover:text-black hover:underline">Fonctionnalités</Link></li>
+              <li><Link href="#pricing" className="text-base font-bold text-gray-600 hover:text-black hover:underline">Tarifs</Link></li>
+            </ul>
           </div>
-
-          {/* Navigation Links */}
-          <nav className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
-            <Link href="/features" className="text-sm font-bold text-black dark:text-white uppercase hover:text-indigo-500 transition-colors">
-              Fonctionnalités
-            </Link>
-            <Link href="/how-it-works" className="text-sm font-bold text-black dark:text-white uppercase hover:text-indigo-500 transition-colors">
-              Comment ça marche
-            </Link>
-            <Link href="/contact" className="text-sm font-bold text-black dark:text-white uppercase hover:text-indigo-500 transition-colors">
-              Contact
-            </Link>
-          </nav>
-
-          {/* Copyright */}
-          <div className="text-xs font-bold text-gray-400 uppercase">
-            &copy; 2024 Kipay
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-black">Légal</h3>
+            <ul className="mt-4 space-y-2">
+              <li><Link href="/terms" className="text-base font-bold text-gray-600 hover:text-black hover:underline">Conditions</Link></li>
+              <li><Link href="/privacy" className="text-base font-bold text-gray-600 hover:text-black hover:underline">Confidentialité</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-black">Contact</h3>
+            <ul className="mt-4 space-y-2">
+              <li><Link href="/contact" className="text-base font-bold text-gray-600 hover:text-black hover:underline">Nous écrire</Link></li>
+              <li><a href="https://twitter.com/kipay" className="text-base font-bold text-gray-600 hover:text-black hover:underline">Twitter</a></li>
+            </ul>
           </div>
         </div>
+        <p className="mt-8 text-4xl md:text-6xl font-black text-center text-black uppercase">
+          KIPAY © {new Date().getFullYear()}
+        </p>
       </div>
     </footer>
   );
