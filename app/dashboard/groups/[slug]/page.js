@@ -12,6 +12,7 @@ import SettleDebtModal from '@/components/SettleDebtModal';
 import Toast from '@/components/Toast';
 import { motion } from 'framer-motion';
 import UserAvatar from '@/components/Avatar';
+import GroupDetailSkeleton from '@/components/GroupDetailSkeleton';
 
 const categoryIcons = {
   'Alimentation': '🍔',
@@ -38,7 +39,7 @@ const ActivityItem = ({ activity }) => {
       icon = '💸';
       content = (
         <>
-          a payé <span className="font-black text-black dark:text-white">{formatAmount(details.amount)}€</span> pour <span className="italic">&#34;{details.description}&#34;</span>
+          a payé <span className="font-black text-black dark:text-white">{formatAmount(details.amount)}€</span> pour <span className="italic">"{details.description}"</span>
         </>
       );
       break;
@@ -46,7 +47,7 @@ const ActivityItem = ({ activity }) => {
       icon = '✏️';
       content = (
         <>
-          a modifié la dépense <span className="italic">&#34;{details.description}&#34;</span>
+          a modifié la dépense <span className="italic">"{details.description}"</span>
         </>
       );
       break;
@@ -54,7 +55,7 @@ const ActivityItem = ({ activity }) => {
       icon = '🗑️';
       content = (
         <>
-          a supprimé la dépense <span className="italic">&#34;{details.description}&#34;</span>
+          a supprimé la dépense <span className="italic">"{details.description}"</span>
         </>
       );
       break;
@@ -239,7 +240,10 @@ export default function GroupDetailPage() {
     }
   };
 
-  if (authLoading || loading) return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Chargement...</div>;
+  if (authLoading || loading) {
+    return <GroupDetailSkeleton />;
+  }
+
   if (!group) return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Groupe introuvable</div>;
 
   const listVariants = {

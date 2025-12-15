@@ -8,6 +8,7 @@ import Link from 'next/link';
 import Modal from '@/components/Modal';
 import CreateGroupForm from '@/components/CreateGroupForm';
 import JoinGroupForm from '@/components/JoinGroupForm';
+import DashboardSkeleton from '@/components/DashboardSkeleton';
 
 export default function DashboardPage() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
@@ -58,7 +59,7 @@ export default function DashboardPage() {
   };
 
   if (authLoading || loading) {
-    return <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center text-black dark:text-white font-black text-2xl uppercase">Chargement...</div>;
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -110,7 +111,7 @@ export default function DashboardPage() {
               </Link>
             ))}
             {groups.length === 0 && !loading && (
-              <p className="text-gray-500">Vous n&#39;avez pas encore de groupe. Créez-en un !</p>
+              <p className="text-gray-500">Vous n'avez pas encore de groupe. Créez-en un !</p>
             )}
           </div>
         </section>
