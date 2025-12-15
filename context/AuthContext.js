@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const AuthContext = createContext(null);
 
@@ -18,6 +18,8 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get('inviteCode');
 
   useEffect(() => {
     const storedToken = localStorage.getItem('kipay_token');
@@ -58,8 +60,10 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated: true 
       });
       
-      // Si l'email n'est pas vérifié, on le redirige vers la page d'attente
-      if (!decoded.email_verified) {
+      // Redirection intelligente
+      if (inviteCode) {
+        router.push(`/join?code=${inviteCode}`);
+      } else if (!decoded.email_verified) {
         router.push('/please-verify');
       } else {
         router.push('/dashboard');
