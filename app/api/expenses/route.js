@@ -1,6 +1,7 @@
 import { getClient, query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { sendNewExpenseEmail } from '@/lib/email';
+import { logActivity } from '@/lib/activity';
 
 // POST /api/expenses - Créer une nouvelle dépense
 export async function POST(request) {
@@ -38,8 +39,14 @@ export async function POST(request) {
 
     await client.query('COMMIT');
 
-    // --- Envoi des notifications ---
-    // On fait ça après le commit pour être sûr que la dépense est bien créée
+    // Log de l'activité
+    await logActivity(group_id, paid_by_user_id, 'EXPENSE_CREATE', {
+      expenseId: expense.id,
+      description: expense.description,
+      amount: expense.amount,
+    });
+
+    // Envoi des notifications
     try {
       const groupInfoRes = await query('SELECT name FROM groups WHERE id = $1', [group_id]);
       const groupName = groupInfoRes.rows[0].name;
@@ -67,10 +74,8 @@ export async function POST(request) {
         });
       }
     } catch (emailError) {
-      // On ne bloque pas la réponse si les emails échouent
       console.error("Failed to send expense notification emails:", emailError);
     }
-    // --- Fin des notifications ---
 
     return NextResponse.json({ expense }, { status: 201 });
   } catch (error) {

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import UserAvatar from './Avatar';
 
 export default function DashboardHeader() {
   const { user, logout } = useAuth();
@@ -16,9 +17,10 @@ export default function DashboardHeader() {
             </Link>
           </div>
           
-          <div className="flex items-center gap-6">
-            <Link href="/dashboard/profile" className="hidden md:block text-sm font-bold uppercase text-gray-500 hover:text-black dark:hover:text-white transition-colors">
-              {user?.email}
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard/profile" className="hidden md:flex items-center gap-3 text-sm font-bold uppercase text-gray-500 hover:text-black dark:hover:text-white transition-colors">
+              <UserAvatar name={user?.email} size={32} variant={user?.avatar_variant} palette={user?.avatar_palette} />
+              <span>{user?.email}</span>
             </Link>
             
             <button

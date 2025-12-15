@@ -1,37 +1,33 @@
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logActivity } from '@/lib/activity';
 
 // POST /api/payments - Enregistrer un remboursement
 export async function POST(request) {
   try {
-    const { amount, date, group_id, paid_by_user_id, paid_to_user_id } = await request.json();
+    const { amount, group_id, paid_by_user_id, paid_to_user_id } = await request.json();
 
-    // Validation
     if (!amount || !group_id || !paid_by_user_id || !paid_to_user_id) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    if (paid_by_user_id === paid_to_user_id) {
-      return NextResponse.json({ error: 'Cannot pay yourself' }, { status: 400 });
+      return NextResponse.json({ error: 'Champs requis manquants' }, { status: 400 });
     }
 
     const text = `
-      INSERT INTO payments (amount, date, group_id, paid_by_user_id, paid_to_user_id)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, amount, date, created_at
+      INSERT INTO payments (amount, group_id, paid_by_user_id, paid_to_user_id)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
     `;
-    
-    const { rows } = await query(text, [
-      amount, 
-      date || new Date(), 
-      group_id, 
-      paid_by_user_id, 
-      paid_to_user_id
-    ]);
+    const { rows } = await query(text, [amount, group_id, paid_by_user_id, paid_to_user_id]);
+
+    // Log de l'activité
+    await logActivity(group_id, paid_by_user_id, 'PAYMENT', {
+      amount: amount,
+      from: paid_by_user_id,
+      to: paid_to_user_id,
+    });
 
     return NextResponse.json({ payment: rows[0] }, { status: 201 });
   } catch (error) {
     console.error('Error creating payment:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }

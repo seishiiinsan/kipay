@@ -13,6 +13,7 @@ export async function GET(request, { params }) {
         e.date, 
         e.created_at,
         e.category,
+        e.paid_by_user_id, -- AJOUTÉ ICI
         u.name as paid_by_name
       FROM expenses e
       JOIN users u ON e.paid_by_user_id = u.id

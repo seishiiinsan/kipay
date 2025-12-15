@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 export async function GET(request, { params }) {
   const { id } = await params;
   try {
-    const { rows } = await query('SELECT id, name, email, notify_new_expense, notify_debt_reminder, created_at FROM users WHERE id = $1', [id]);
+    const { rows } = await query('SELECT id, name, email, notify_new_expense, notify_debt_reminder, avatar_variant, avatar_palette, created_at FROM users WHERE id = $1', [id]);
     if (rows.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -21,10 +21,10 @@ export async function PUT(request, { params }) {
   const { id } = await params;
   try {
     const body = await request.json();
-    const { name, email, notify_new_expense, notify_debt_reminder } = body;
+    const { name, email, notify_new_expense, notify_debt_reminder, avatar_variant, avatar_palette } = body;
 
     // Validation
-    if (!name && !email && notify_new_expense === undefined && notify_debt_reminder === undefined) {
+    if (!name && !email && notify_new_expense === undefined && notify_debt_reminder === undefined && !avatar_variant && !avatar_palette) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
@@ -48,10 +48,18 @@ export async function PUT(request, { params }) {
       fields.push(`notify_debt_reminder = $${fieldIndex++}`);
       values.push(notify_debt_reminder);
     }
+    if (avatar_variant) {
+      fields.push(`avatar_variant = $${fieldIndex++}`);
+      values.push(avatar_variant);
+    }
+    if (avatar_palette) {
+      fields.push(`avatar_palette = $${fieldIndex++}`);
+      values.push(avatar_palette);
+    }
 
     values.push(id);
 
-    const text = `UPDATE users SET ${fields.join(', ')} WHERE id = $${fieldIndex} RETURNING id, name, email, notify_new_expense, notify_debt_reminder, created_at`;
+    const text = `UPDATE users SET ${fields.join(', ')} WHERE id = $${fieldIndex} RETURNING id, name, email, notify_new_expense, notify_debt_reminder, avatar_variant, avatar_palette, created_at`;
     
     const { rows } = await query(text, values);
 

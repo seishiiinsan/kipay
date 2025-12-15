@@ -20,22 +20,53 @@ export const AuthProvider = ({ children }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('kipay_token');
-    if (storedToken) {
-      const decoded = parseJwt(storedToken);
-      if (decoded) {
-        setToken(storedToken);
-        setUser({ 
-          id: decoded.userId, 
-          email: decoded.email,
-          email_verified: decoded.email_verified,
-          isAuthenticated: true 
-        });
-      } else {
-        localStorage.removeItem('kipay_token');
+    const initAuth = async () => {
+      const storedToken = localStorage.getItem('kipay_token');
+      if (storedToken) {
+        const decoded = parseJwt(storedToken);
+        if (decoded && decoded.userId) {
+          setToken(storedToken);
+          
+          // On initialise avec les données du token pour un affichage rapide
+          setUser({ 
+            id: decoded.userId, 
+            email: decoded.email,
+            email_verified: decoded.email_verified,
+            avatar_variant: decoded.avatar_variant || 'beam',
+            isAuthenticated: true 
+          });
+
+          // Ensuite, on va chercher les données fraîches en base
+          try {
+            const res = await fetch(`/api/users/${decoded.userId}`, {
+              headers: { 'Authorization': `Bearer ${storedToken}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              setUser(prev => ({
+                ...prev,
+                ...data.user, // Met à jour name, email, avatar_variant, etc.
+                isAuthenticated: true
+              }));
+            } else {
+              // Si le token est invalide côté serveur (ex: user supprimé), on déconnecte
+              if (res.status === 401 || res.status === 404) {
+                localStorage.removeItem('kipay_token');
+                setToken(null);
+                setUser(null);
+              }
+            }
+          } catch (error) {
+            console.error("Failed to refresh user data", error);
+          }
+        } else {
+          localStorage.removeItem('kipay_token');
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email, password) => {
@@ -51,15 +82,14 @@ export const AuthProvider = ({ children }) => {
       
       const decoded = parseJwt(data.token);
       setToken(data.token);
+      
+      // On utilise les données renvoyées par le login (qui sont fraîches)
       setUser({ 
-        id: decoded.userId, 
-        email: decoded.email,
-        email_verified: decoded.email_verified,
+        ...data.user,
         isAuthenticated: true 
       });
       
-      // Si l'email n'est pas vérifié, on le redirige vers la page d'attente
-      if (!decoded.email_verified) {
+      if (!data.user.email_verified) {
         router.push('/please-verify');
       } else {
         router.push('/dashboard');
@@ -85,12 +115,20 @@ export const AuthProvider = ({ children }) => {
     router.push('/login');
   };
 
+  const updateUser = (updatedUserData) => {
+    setUser(prevUser => ({
+      ...prevUser,
+      ...updatedUserData,
+    }));
+  };
+
   const value = {
     user,
     token,
     login,
     logout,
     register,
+    updateUser,
     loading,
     isAuthenticated: !!user,
   };
